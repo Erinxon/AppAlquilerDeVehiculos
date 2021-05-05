@@ -1,0 +1,195 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager navigationManager
+
+<AuthorizeView>
+    <Authorized>
+        <div id="app">
+            <div id="sidebar" class="@sidebar hidden-print">
+                <div class="sidebar-wrapper active">
+                    <div class="sidebar-header">
+                        <div class="d-flex justify-content-between">
+                            <div class="logo">
+                                <a href="/" style="text-decoration: none;">
+                                    <h3 style="color: #435EBE;">Itla RentCars</h3>
+                                </a>
+                            </div>
+                            <div class="toggler">
+                                <a href="" class="sidebar-hide d-xl-none d-block" @onclick:preventDefault @onclick="@DespleglarMenu"><i class="bi bi-x bi-middle"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-menu hidden-print">
+                        <ul class="menu hidden-print">
+                            <li class="sidebar-title">Menu</li>
+
+                            <li class="sidebar-item @(IsRutaMenu() ? "" : "active")">
+                                <a href="/" class='sidebar-link'>
+                                    <i class="oi oi-home"></i>
+                                    <span>Inicio</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-item @(GetRuta().Contains("/Vehiculos") || GetRuta().Contains("/TiposVehiculos")
+                                                      || GetRuta().Contains("/EditarVehiculos") || GetRuta().Contains("/EditarTipoVehiculo")
+                                                      || GetRuta().Contains("/AgregarVehiculos") || GetRuta().Contains("/AgregarTipoVehiculo")
+                                                      ? "active" : "")">
+                                <a href="/Vehiculos" class='sidebar-link'>
+                                    <i class="fas fa-truck"></i>
+                                    <span>Vehiculos</span>
+                                </a>
+                            </li>
+
+                            <li class="sidebar-item @(GetRuta().Contains("/Clientes") || GetRuta().Contains("/AgregarClientes")
+                                                      || GetRuta().Contains("/EditarCliente") ? "active" : "")">
+                                <a href="/Clientes" class='sidebar-link'>
+                                    <i class="fas fa-users"></i>
+                                    <span>Clientes</span>
+                                </a>
+                            </li>
+
+                            <li class="sidebar-item @(GetRuta().Contains("/Reservas") ? "active" : "")">
+                                <a href="/Reservas" class='sidebar-link'>
+                                    <i class="far fa-calendar-alt"></i>
+                                    <span>Reservas</span>
+                                </a>
+                            </li>
+
+                            <li class="sidebar-item @(GetRuta().Contains("/Cobros") || GetRuta().Contains("/Cobrar") ? "active" : "")">
+                                <a href="/Cobros" class='sidebar-link'>
+                                    <i class="fas fa-cash-register"></i>
+                                    <span>Cobros</span>
+                                </a>
+                            </li>
+
+
+                            <li class="sidebar-item has-sub @(GetRuta().Contains("/Cantidad")
+                              || GetRuta().Contains("/Deben") || GetRuta().Contains("/Disponibles")
+                              || GetRuta().Contains("/mapa") ? "active" : "")">
+                                <a href="#" class='sidebar-link' @onclick:preventDefault @onclick="@Despleglar">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                    <span>Reportes</span>
+                                </a>
+                                <ul class="@classCss " style="@styleCss">
+                                    <li class="submenu-item @(GetRuta().Contains("/Disponibles") ? "active" : "")">
+                                        <a href="/Disponibles" style="text-decoration: none;">Lista de vehiculos</a>
+                                    </li>
+                                    <li class="submenu-item @(GetRuta().Contains("/Cantidad") ? "active" : "")">
+                                        <a href="/Cantidad" style="text-decoration: none;">Listado de beneficios</a>
+                                    </li>
+                                    <li class="submenu-item @(GetRuta().Contains("/Deben") ? "active" : "")">
+                                        <a href="/Deben" style="text-decoration: none;">Clientes que deben</a>
+                                    </li>
+                                    <li class="submenu-item @(GetRuta().Contains("/mapa") ? "active" : "")">
+                                        <a href="/mapa" style="text-decoration: none;">Ver vehículos en Mapa</a>
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <li class="dropdown-divider"></li>
+                            <li class="sidebar-item @(GetRuta().Contains("/Usuarios") || GetRuta().Contains("/EditarUsuario")
+                                                      || GetRuta().Contains("/AgregarUsuario") ? "active" : "")">
+                                <a href="/Usuarios" class='sidebar-link'>
+                                    <i class="fas fa-user-cog"></i>
+                                    <span>Usuarios</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-item ">
+                                <CerraSesion />
+                            </li>
+                        </ul>
+                    </div>
+                    <button class="sidebar-toggler btn x"><i data-feather="x"></i></button>
+                </div>
+            </div>
+            <div id="main">
+                <header class="mb-3 hidden-print">
+                    <button class="burger-btn d-block d-xl-none boton-menu"  @onclick="@DespleglarMenu">
+                        <i class="bi bi-justify fs-3"></i>
+                    </button>
+                </header>
+
+                <div class="page-heading hidden-print">
+                    <h3 class="heading"></h3>
+                </div>
+
+                <div class="page-content">
+                    <section class="row">
+                        @Body
+                    </section>
+                </div>
+
+                <footer>
+                    <div class="footer clearfix mt-3 mb-0 text-muted hidden-print">
+                        <div class="float-start">
+                            <p>2021 &copy;</p>
+                        </div>
+                        <div class="float-end">
+                            <p>
+                                Acerda del <a href="/AcercaDe" target="_blank">Grupo</a>
+                            </p>
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="page">
+            <div class="main">
+                <div class="content px-4">
+                    <Login />
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+    <Authorizing>
+        <div class="container mt-3 d-flex justify-content-center h-100">
+            <div class="spinner-grow" style="width: 3rem; height: 3rem;" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>          
+        </div>
+    </Authorizing>
+</AuthorizeView>
+
+
+@code{
+    private bool collapseSidebar = true;
+    private string sidebar = "active";
+
+    private bool collapseNavMenu = false;
+    private string classCss = "submenu";
+    private string styleCss = "display: none;";
+
+    private void Despleglar()
+    {
+        collapseNavMenu = !collapseNavMenu;
+        classCss = collapseNavMenu ? "submenu active" : "submenu ";
+        styleCss = collapseNavMenu ? "display: block;" : "display: none;";
+    }
+
+    private void DespleglarMenu()
+    {
+        collapseSidebar = !collapseSidebar;
+        sidebar = collapseSidebar ? "active" : "";
+    }
+
+    private string GetRuta()
+    {
+        return navigationManager.Uri;
+    }
+
+    private bool IsRutaMenu()
+    {
+        bool isMeni = GetRuta().Contains("/Vehiculos") || GetRuta().Contains("/TiposVehiculos")
+                  || GetRuta().Contains("/EditarVehiculos") || GetRuta().Contains("/EditarTipoVehiculo")
+                  || GetRuta().Contains("/AgregarVehiculos") || GetRuta().Contains("/AgregarTipoVehiculo")
+                  || GetRuta().Contains("/Reservas") || GetRuta().Contains("/Usuarios") 
+                  || GetRuta().Contains("/EditarUsuario") || GetRuta().Contains("/AgregarUsuario")
+                  || GetRuta().Contains("/Clientes") || GetRuta().Contains("/AgregarClientes")
+                  || GetRuta().Contains("/EditarCliente") || GetRuta().Contains("/Cantidad")
+                  || GetRuta().Contains("/Deben") || GetRuta().Contains("/Disponibles")
+                  || GetRuta().Contains("/mapa") || GetRuta().Contains("/Cobros") 
+                  || GetRuta().Contains("/Cobrar") || GetRuta().Contains("/Factura");
+        return isMeni;
+    }
+
+}

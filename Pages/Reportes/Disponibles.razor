@@ -1,0 +1,121 @@
+﻿@page "/Disponibles"
+@attribute [Authorize]
+@inject AlquilerVehiculoDbContext context
+@inject IServicesReserva servicesReserva
+
+<PageTitle Value="Listado de vehículos disponibles" />
+<PageHeading Value="Listado de vehículos disponible en un rango de fecha" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    @if (disponibles == null)
+    {
+        <Spinner />
+    }
+    else
+    {
+        <div class="form-inline">
+            <label class="sr-only" for="fecha-filtro">Buscar Vehiculos disponible en el rango de fecha</label>
+            <input type="date" min="2021-01-01" max="2025-12-31" class="form-control mb-2 mr-sm-2" @bind="fechainicio">
+            <input type="date" min="2021-01-01" max="2025-12-31" class="form-control mb-2 mr-sm-2" @bind="fechafinal">
+            <button type="button" class="btn btn-primary mr-sm-2 mb-2" @onclick="Filtrar">Buscar Disponibles</button>
+            <button type="button" class="btn btn-secondary mb-2" @onclick="Limpiar">Limpiar</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Foto</th>
+                        <th>Modelo</th>
+                        <th>Marca</th>
+                        <th>Color</th>
+                        <th>Año</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in disponibles)
+                    {
+                        <tr>
+                            <td>
+                                <div class="avatar avatar-xl">
+                                    <img src="@GetImg(r.Foto)" />
+                                </div>
+                            </td>
+                            <td>@r.Modelo</td>
+                            <td>@r.Marca</td>
+                            <td>@r.Color</td>
+                            <td>@r.Anio</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        }
+</div>
+
+    @code {
+        private DateTime fechainicio = DateTime.Today;
+        private DateTime fechafinal = DateTime.Today;
+        List<InfoDisponibles> disponibles { get; set; }
+
+        protected async override Task OnInitializedAsync()
+        {
+            disponibles = await GetaAllVehiculos();
+
+        }
+
+        private  async Task<List<InfoDisponibles>> GetaAllVehiculos()
+        {
+            return await (from v in context.Vehiculos
+                          select new InfoDisponibles
+                          {
+                              IdVehiculo = v.IdVehiculo,
+                              Foto = v.Foto,
+                              Modelo = v.Modelo,
+                              Marca = v.Marca,
+                              Color = v.Color,
+                              Anio = (int)v.Anio,
+
+                          }).ToListAsync();
+        }
+
+        public class InfoDisponibles
+        {
+            public int IdVehiculo { get; set; }
+            public string Foto { get; set; }
+            public string Marca { get; set; }
+            public string Modelo { get; set; }
+            public string Color { get; set; }
+            public int Anio { get; set; }
+        }
+
+        private async Task Filtrar()
+        {
+            try
+            {
+                if (fechafinal >= DateTime.Today && fechafinal >= DateTime.Today)
+                {
+                    var allReservasVehiculo = await GetaAllVehiculos();
+                    disponibles = allReservasVehiculo.Where(x => !servicesReserva.IsVehiculoReservado(x.IdVehiculo) ||
+                    servicesReserva.IsVehiculoDisponible(x.IdVehiculo,fechainicio,fechafinal) ).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                string error = ex.Message;
+            }
+        }
+
+        private string GetImg(string imgName)
+        {
+            return "/Imagenes/ImgVehiculos/" + imgName;
+        }
+
+        private async Task Limpiar()
+        {
+            fechainicio = DateTime.Today;
+            fechafinal = DateTime.Today;
+            disponibles = await GetaAllVehiculos();
+        }
+
+
+    }

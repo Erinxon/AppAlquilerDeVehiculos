@@ -1,0 +1,143 @@
+﻿@page "/Factura/{Id:int}"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject AlquilerVehiculoDbContext Context
+@inject NavigationManager navigationManager
+
+<PageTitle Value="Imprimir Factura" />
+<PageHeading Value="Imprimir Factura" />
+
+
+<div class="container">
+    @if (factura == null)
+    {
+        <Spinner />
+    }
+    else
+    {
+        <div id="app" class="col-11">
+            <h2>Factura</h2>
+            <hr />
+            <div class="row fact-info mt-3">
+                <div class="col-3">
+                    <h5>Facturar a</h5>
+                    <p>
+                        @factura.NombreCliente
+                    </p>
+                </div>
+                <div class="col-3">
+                    <h5>N° de factura</h5>
+                    <p>@factura.IdFactura</p>
+                </div>
+                <div class="col-3">
+                    <h5>Fecha factura</h5>
+                    <p>@factura.Fecha</p>
+                </div>
+                <div class="col-3">
+                    <h5>Fecha Inicio</h5>
+                    <p>@factura.FechaInicio</p>
+                </div>
+                <div class="col-3">
+                    <h5>Fecha Fin</h5>
+                    <p>@factura.FechaFin</p>
+                </div>
+            </div>
+        </div>
+        <div class="row my-5">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>Año</th>
+                        <th>Color</th>
+                        <th>Precio por dia</th>
+                        <th>Pasajeros</th>
+                        <th>Matrícula</th>
+                        <th>Número seguro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>@factura.Marca</td>
+                        <td>@factura.Modelo</td>
+                        <td>@factura.Anio</td>
+                        <td>@factura.Color</td>
+                        <td>@factura.PrecioPorDia</td>
+                        <td>@factura.Pasajeros</td>
+                        <td>@factura.Matricula</td>
+                        <td>@factura.NumSeguro</td>
+                    </tr>
+                    <tr class="float-left">
+                        <th>Total Factura: @factura.Monto</th>
+                    </tr>
+                    <tr class="float-left">
+                        <th>Total Pagado: @factura.TotalPagado</th>
+                    </tr>
+                    <tr class="float-left">
+                        <th>Por pagar: @(factura.Monto - factura.TotalPagado)</th>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <button class="btn btn-primary hidden-print" @onclick="@show">
+            <i class="fas fa-print mr-2"></i>Imprimir
+        </button>
+        <button class="btn btn-primary hidden-print" @onclick="@Redirigir">
+            <i class="fas fa-home mr-2"></i>Vorver al inicio
+        </button>
+
+    }
+</div>
+
+@code{
+    [Parameter]
+    public int Id { get; set; }
+    public FacturaViewModel factura { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        factura = await (from factura in Context.Facturas
+                         join reserva in Context.Reservas
+                         on factura.IdReserva equals reserva.IdReserva
+                         join vehiculo in Context.Vehiculos
+                         on reserva.IdVehiculo equals vehiculo.IdVehiculo
+                         join tipo in Context.TipoVehiculos
+                         on vehiculo.IdTipoVehiculo equals tipo.IdTipoVehiculo
+                         join cliente in Context.Clientes
+                         on reserva.IdCliente equals cliente.IdCliente
+                         where factura.IdReserva == Id
+                         select new FacturaViewModel
+                         {
+                             IdFactura = factura.IdFactura,
+                             Monto = (decimal)factura.Monto,
+                             Fecha = factura.Fecha,
+                             TotalPagado = (decimal)factura.TotalPagado,
+                             PrecioPorDia = (decimal) vehiculo.PrecioPorDia,
+                             FechaInicio = (DateTime)reserva.FechaInicio,
+                             FechaFin = (DateTime)reserva.FechaFin,
+                             Marca = vehiculo.Marca,
+                             Modelo = vehiculo.Modelo,
+                             Anio = (int)vehiculo.Anio,
+                             Color = vehiculo.Color,
+                             Pasajeros = (int)vehiculo.Pasajeros,
+                             Matricula = vehiculo.Matricula,
+                             NumSeguro = vehiculo.NumSeguro,
+                             NombreCliente = cliente.Nombre + " " + cliente.Apellido
+
+                         }).FirstOrDefaultAsync();
+
+        if (factura == null) Redirigir();
+    }
+
+    private async Task show()
+    {
+        await jsRuntime.InvokeVoidAsync("print");
+    }
+
+    private  void Redirigir()
+    {
+        navigationManager.NavigateTo("/");
+    }
+
+}

@@ -1,0 +1,22 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="page-wrap d-flex flex-row align-items-center">
+                    <div class="container">
+                        <div class="row justify-content-center">
+                            <div class="col-md-12 text-center">
+                                <span class="display-1 d-block">404</span>
+                                <div class="mb-4 lead">No se encontro la pagina que busca.</div>
+                                <a href="/" class="btn btn-link">Vorver al inicio</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

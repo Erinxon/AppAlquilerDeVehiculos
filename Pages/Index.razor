@@ -1,0 +1,38 @@
+﻿@page "/"
+@attribute [Authorize]
+@inject ILocalStorageService LocalStorage
+@inject AlquilerVehiculoDbContext context
+@inject IJSRuntime jsRuntime
+
+<PageTitle Value="Inicio" />
+<PageHeading Value="Sistema de alquier de vehículos" />
+
+<div class="jumbotron jumbotron-fluid" style="border-radius: 10px !important">
+    <div class="container">
+        @if (usuario == null)
+        {
+            <h1 class="display-4">Bienvenido, <Spinner /></h1>
+        }
+        else
+        {
+            <h1 class="display-4">Bienvenido, @usuario</h1>
+        }
+        <p class="lead">Aplicación para alquiler de vehículos</p>
+    </div>
+</div>
+
+
+@code{
+    private string usuario { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        string nombreUsuario = await LocalStorage.GetItemAsStringAsync("DatosUsuario");
+        if (!string.IsNullOrEmpty(nombreUsuario))
+        {
+            usuario = nombreUsuario;
+        }
+
+    }
+
+}

@@ -1,0 +1,69 @@
+﻿@page "/AgregarTipoVehiculo"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject IServicesTipoVehiculo servicesTipoVehiculo
+
+<PageTitle Value="Agregar tipo de vehiculo" />
+<PageHeading Value="Agregar tipo de vehiculo" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <EditForm class="needs-validation" Model="@tiposVehiculos" OnValidSubmit="@Guardar">
+        <FluentValidationValidator />
+        <div class="form-row">
+            <div class="col-md-12 mb-3">
+                <label>Tipo de vehiculo</label>
+                <InputText type="text" id="tiposVehiculosNombre" @bind-Value="@tiposVehiculos.Nombre" class="form-control" />
+                <ValidationMessage For="@(() => tiposVehiculos.Nombre)" />
+            </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" id="addTipoVehiculo">Guardar</button>
+        <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick:preventDefault @onclick="@cancelar">Cancelar</button>
+    </EditForm>
+</div>
+
+@code {
+    private TipoVehiculo tiposVehiculos = new TipoVehiculo();
+    private IJSObjectReference jSObjectReference;
+
+    private async Task Guardar()
+    {
+        await Loanding(true);
+        if (!servicesTipoVehiculo.IsExist(tiposVehiculos.Nombre))
+        {
+            await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "tiposVehiculosNombre", "valid");
+            await servicesTipoVehiculo.SaveTipoVehiculo(tiposVehiculos);
+            await Loanding(false);
+            tiposVehiculos = new TipoVehiculo();
+        }
+        else
+        {
+            await Loanding(false);
+            await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "tiposVehiculosNombre", "invalid");
+            await jSObjectReference.InvokeVoidAsync("mensajeError", $"{tiposVehiculos.Nombre} ya existe, por favor intente con otro");
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private async Task cancelar()
+    {
+        await jSObjectReference.InvokeVoidAsync("ClearInput");
+        tiposVehiculos = new TipoVehiculo();
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "addTipoVehiculo", "Guardar");
+    }
+}

@@ -1,0 +1,223 @@
+﻿@page "/AgregarVehiculos"
+@attribute [Authorize]
+@inject IServicesTipoVehiculo servicesTipoVehiculo
+@inject IServicesVehiculo servicesVehiculo
+@inject IJSRuntime jsRuntime
+@inject NavigationManager navigationManager
+@inject IWebHostEnvironment env
+
+<PageTitle Value="Agregar Vehiculos" />
+<PageHeading Value="Agregar Vehiculos" />
+
+
+<div class="container mt-3 d-flex justify-content-center shadow p-3 mb-5 bg-white rounded">
+    <EditForm class="needs-validation" Model="@vehiculo" OnValidSubmit="@SaveVehiculo">
+        <FluentValidationValidator />
+        <div class="form-row">
+            <div class="col-md-6 mb-3">
+                <label>Marca</label>
+                <InputText type="text" id="Marca" @bind-Value="@vehiculo.Marca" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Marca)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Modelo</label>
+                <InputText type="text" id="Modelo" @bind-Value="@vehiculo.Modelo" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Modelo)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Año</label>
+                <InputNumber id="Anio" @bind-Value="@vehiculo.Anio" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Anio)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Color</label>
+                <InputText type="text" id="Color" @bind-Value="@vehiculo.Color" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Color)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Precio por dia</label>
+                <InputNumber id="PrecioPorDia" @bind-Value="@vehiculo.PrecioPorDia" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.PrecioPorDia)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Tipo de Vehiculo</label>
+                <InputSelect class="form-control" id="tiposVehiculos" @bind-Value="@vehiculo.IdTipoVehiculo">
+                    <option value="0" selected="selected">Seleccionar</option>
+                    @if (tiposVehiculos != null)
+                    {
+                        @foreach (var item in tiposVehiculos)
+                        {
+                            <option value="@item.IdTipoVehiculo">@item.Nombre</option>
+                        }
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => vehiculo.IdTipoVehiculo)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Capacidad de Carga (kg)</label>
+                <InputNumber id="CapacidadCarga" @bind-Value="@vehiculo.CapacidadCarga" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.CapacidadCarga)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Numeros de pasajeros</label>
+                <InputNumber id="Pasajeros" @bind-Value="@vehiculo.Pasajeros" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Pasajeros)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Matrícula</label>
+                <InputText id="Matricula" @bind-Value="@vehiculo.Matricula" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.Matricula)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Número del seguro</label>
+                <InputText id="NumSeguro" @bind-Value="@vehiculo.NumSeguro" class="form-control" />
+                <ValidationMessage For="@(() => vehiculo.NumSeguro)" />
+            </div>
+            <div class="col-md-12 mb-3">
+                <label>Foto del vehículo</label>
+                <InputFile OnChange="OnInputFileChange" id="imagenVehiculo" class="form-control" @bind-Value="@vehiculo.Foto" accept=".png,.jpg,.jpeg"  />
+                <ValidationMessage For="@(() => vehiculo.Foto)" />
+            </div>
+
+            <div class="col-md-12 mb-3">
+                <label>Ubicación del vehículo (Latitud y Longitud)</label>
+                <div class="input-group">
+                    <InputText @bind-Value="@vehiculo.Latitud" id="Latitud" class="form-control" placeholder="Latitud" readonly />
+                    <InputText @bind-Value="@vehiculo.Longitud" id="Longitud" class="form-control" placeholder="Longitud" readonly />
+                    <div class="input-group-prepend">
+                        <button class="btn btn-dark" @onclick:preventDefault @onclick="mostrarDialogo">Seleccionar Coordenadas</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" id="addVehiculo">Agregar vehículo</button>
+        <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick:preventDefault @onclick="ClearInput">Cancelar</button>
+    </EditForm>
+</div>
+
+
+@code {
+    private Vehiculo vehiculo = new Vehiculo();
+
+    private IEnumerable<TipoVehiculo> tiposVehiculos { get; set; }
+
+    IReadOnlyList<IBrowserFile> selectedFiles;
+
+    private IJSObjectReference jSObjectReference;
+
+    private string contentTypepeImg { get; set; } = string.Empty;
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        tiposVehiculos = await servicesTipoVehiculo.GetAllTipoVehiculosAsync();
+    }
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles();
+        foreach (var file in selectedFiles)
+        {
+            vehiculo.Foto = file.Name;
+            contentTypepeImg = file.ContentType;
+        }
+    }
+
+    private async Task SaveVehiculo()
+    {
+        try
+        {
+            await Loanding(true);
+            if (servicesVehiculo.IsMatriculaExist(vehiculo.Matricula))
+            {
+                await Loanding(false);
+                await ShowValidation("1px solid red", "Matricula", "invalid");
+                await ShowError("La Matrícula que ingresó ya esta registrada, Por favor ingrese otra.");
+            }
+            else if (servicesVehiculo.IsNumSuguroExist(vehiculo.NumSeguro))
+            {
+                await Loanding(false);
+                await ShowValidation("1px solid red", "NumSeguro", "invalid");
+                await ShowError("El seguro que ingresó ya esta registrado, Por favor ingreso otro.");
+            }
+            else if (!contentTypepeImg.Equals("image/jpeg") && !contentTypepeImg.Equals("image/jpg")
+                && !contentTypepeImg.Equals("image/png"))
+            {
+                await Loanding(false);
+                await ShowValidation("1px solid red", "imagenVehiculo", "invalid");
+                await ShowError("La imagen no es valida");
+            }
+            else
+            {
+                vehiculo.Ishabilitado = 1;
+                foreach (var file in selectedFiles)
+                {
+                    Stream stream = file.OpenReadStream();
+                    var path = $"{env.WebRootPath}\\Imagenes\\ImgVehiculos\\{file.Name}";
+                    FileStream fs = File.Create(path);
+                    await stream.CopyToAsync(fs);
+                    stream.Close();
+                    fs.Close();
+                }
+                this.StateHasChanged();
+                await ConfirmarCambios();
+                await Loanding(false);
+                await ClearInput();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await Loanding(false);
+            await ShowError(ex.Message);
+        }
+
+    }
+
+    private async Task ClearInput()
+    {
+        await jSObjectReference.InvokeVoidAsync("ClearInput");
+        vehiculo = new Vehiculo();
+    }
+
+    private async Task mostrarDialogo()
+    {
+        await jSObjectReference.InvokeVoidAsync("ShowMap");
+    }
+
+    private async Task ShowError(string error)
+    {
+        await jSObjectReference.InvokeVoidAsync("mensajeError", error);
+    }
+
+    private async Task ConfirmarCambios()
+    {
+        await ShowValidation("1px solid #26b050", "Matricula","valid");
+        await ShowValidation("1px solid #26b050", "NumSeguro", "valid");
+        await ShowValidation("1px solid #26b050", "imagenVehiculo", "valid");
+        await servicesVehiculo.SaveVehiculo(vehiculo);
+    }
+
+    private async Task ShowValidation(string style, string nameId, string tipo)
+    {
+        await jSObjectReference.InvokeVoidAsync("addValidation", style, nameId, tipo);
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "addVehiculo", "Agregar vehículo");
+    }
+
+}

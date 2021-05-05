@@ -1,0 +1,167 @@
+﻿@page "/Clientes"
+@attribute [Authorize]
+@inject IJSRuntime JsRuntime;
+@inject IServicesPersona servicioper
+@inject AlquilerVehiculoDbContext Context
+
+<PageTitle Value="Clientes" />
+<PageHeading Value="Clientes" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div class="row mt-3 mb-3">
+        <div class="col">
+            <div class="float-left">
+                <a class="btn btn-primary mr-sm-2 mb-2" href="/AgregarClientes">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Agregar Cliente
+                </a>
+            </div>
+            <div class="float-right">
+                <input class="dataTable-input" @bind="@search" placeholder="Buscar..." type="text">
+                <button class="btn btn-primary" @onclick="@Filtrar">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-secondary" @onclick="@Clear">
+                    <i class="fas fa-eraser"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    @if (Cls == null)
+    {
+        <Spinner />
+    }
+    else if (Cls.Count() == 0)
+    {
+        <h3>@resultMessage</h3>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">F. Cliente</th>
+                        <th scope="col">Cedula</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Apellido</th>
+                        <th scope="col">Sangre</th>
+                        <th scope="col">Correo</th>
+                        <th scope="col">Licencia</th>
+                        <th scope="col">Nacionalidad</th>
+                        <th scope="col">F. Licencia</th>
+                        <th scope="col" style="min-width: 122px;">Estado</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (Cliente clientes in Cls)
+                    {
+                        <tr>
+                            <td><img src="@clientes.FotoPersona" width="100px" height="100" /></td>
+                            <td scope="row">@clientes.Cedula</td>
+                            <td>@clientes.Nombre</td>
+                            <td>@clientes.Apellido</td>
+                            <td>@clientes.TipoSangre</td>
+                            <td>@clientes.Correo</td>
+                            <td>@clientes.Licencia</td>
+                            <td>@clientes.Nacionalidad</td>
+                            <td>
+                                <img src="@GetImg(clientes.FotoLicencia)" class="figure-img" height="100" width="100" />
+                            </td>
+                            <td>
+                                <span class="@(clientes.Ishabilitado == 1 ? "badge bg-primary" : "badge bg-danger")">
+                                    @(clientes.Ishabilitado == 1 ? "Habilitado" : "Deshabilitado")
+                                </span>
+                            </td>
+                            <td>
+                                <a class="btn btn-primary mr-sm-2 mb-2" href="/EditarCliente/@clientes.IdCliente">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="@clientes.Cedula"
+                                           @onchange="@((ChangeEventArgs __e) => CambiarEstado(clientes.IdCliente, (int) clientes.Ishabilitado))"
+                                           checked="@(clientes.Ishabilitado == 1 ? true : false)">
+                                    <label class="form-check-label" for="@clientes.Cedula"></label>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+    }
+
+</div>
+
+
+
+@code {
+
+    string cedulaM = "";
+
+    private IEnumerable<Cliente> Cls { get; set; }
+
+    private string search { get; set; } = string.Empty;
+    private string resultMessage { get; set; } = string.Empty;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await GetClienteByIdAsync();
+    }
+
+    private async Task GetClienteByIdAsync()
+    {
+        if (search.Equals(""))
+        {
+            Cls = await servicioper.GetAllClienteAsync();
+            resultMessage = Cls.Count() == 0 ? "No hay clientes registrados" : "";
+        }
+        else
+        {
+            Cls = await servicioper.GetFilterClienteAsync(search);
+            resultMessage = Cls.Count() == 0 ?  "No se encontró ningún cliente que coincida con su busqueda" : "";
+        }
+
+    }
+
+    private async Task CambiarEstado(int id, int estado)
+    {
+        try
+        {
+            Cliente cl = await servicioper.GetClienteByIdAsync(id);
+            cl.Ishabilitado = estado == 1 ? 0 : 1;
+            await servicioper.CambiarCampoHabilitado(cl);
+            await GetClienteByIdAsync();
+            cl = null;
+        }
+        catch (Exception ex)
+        {
+            string errror = ex.Message;
+        }
+
+
+    }
+
+    public RenderFragment ChildContent { get; set; }
+
+    private string GetImg(string imgName)
+    {
+        return "/Imagenes/ImgClientes/" + imgName;
+    }
+
+    private async Task Filtrar()
+    {
+        await GetClienteByIdAsync();
+    }
+
+    private async Task Clear()
+    {
+        search = string.Empty;
+        await GetClienteByIdAsync();
+    }
+
+   
+}
+

@@ -1,0 +1,102 @@
+﻿@page "/Login"
+@inject NavigationManager navigation
+@inject IJSRuntime jsRuntime
+@inject AlquilerVehiculoDbContext DbContext
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider authentication
+@inject IServicesUsuarios servicesUsuarios
+
+<PageTitle Value="Iniciar sesión" />
+
+<div class="container mt-3 d-flex justify-content-center">
+    @if (!Cargando & !IsAutenticated)
+    {
+        <EditForm Model="usuario" OnValidSubmit="Iniciar" class="needs-validation shadow p-3 mb-5 bg-white rounded">
+            <DataAnnotationsValidator />
+            <h3 class="text-center mt-2">Iniciar sesión</h3>
+            <div class="form-row">
+                <div class="col-md-12 mb-3">
+                    <label>Usuario</label>
+                    <InputText type="text" id="usuario" @bind-Value="@usuario.NombreUsuario" class="form-control" />
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label>Contraseña</label>
+                    <InputText type="password" id="password" @bind-Value="@usuario.Pass" class="form-control" />
+                </div>
+                <div class="col-md-12 mb-3">
+                    <button class="btn btn-primary btn-lg btn-block" id="login">Iniciar sesión</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+
+</div>
+
+
+@code{
+    private Usuario usuario = new Usuario();
+    private bool Cargando = true;
+    private bool IsAutenticated = false;
+    private IJSObjectReference jSObjectReference;
+
+    protected async override Task OnInitializedAsync()
+    {
+        AuthenticationState user = await authentication.GetAuthenticationStateAsync();
+        if (user.User.Identities.Any(x=>x.IsAuthenticated))
+        {
+            IsAutenticated = true;
+            Cargando = false;
+            navigation.NavigateTo("/");
+        }
+        else
+        {
+            IsAutenticated = false;
+            Cargando = false;
+        }
+    }
+
+    private async Task Iniciar()
+    {
+        try
+        {
+            await Loanding(true);
+            Usuario user = servicesUsuarios.GetUsuarioByNombreUsuario(usuario.NombreUsuario);
+            if (user != null && user.Pass.Equals(this.usuario.Pass))
+            {
+                await LocalStorage.SetItemAsync<string>("nombreUsuario", this.usuario.NombreUsuario);
+                await LocalStorage.SetItemAsync<string>("DatosUsuario", user.Nombre + " " + user.Apellido);
+                await authentication.GetAuthenticationStateAsync();
+                await Loanding(false);
+                navigation.NavigateTo("/");
+            }
+            else
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("mensajeError", "Nombre de usuario o contraseña incorrecta");
+            }
+        }
+        catch (Exception ex)
+        {
+            string error = ex.Message;
+        }
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "login", "Iniciar sesión");
+    }
+
+}

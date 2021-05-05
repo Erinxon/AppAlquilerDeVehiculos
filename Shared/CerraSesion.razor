@@ -1,0 +1,22 @@
+﻿@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager navigation
+
+<AuthorizeView>
+    <Authorized>
+        <a href="" @onclick="Logout" class='sidebar-link'>
+            <i class="oi oi-account-logout"></i>
+            <span>Cerrar sesión</span>
+        </a>
+    </Authorized>
+</AuthorizeView>
+
+@code{
+    private async void Logout()
+    {
+        await LocalStorage.RemoveItemAsync("nombreUsuario");
+        await LocalStorage.RemoveItemAsync("DatosUsuario");
+        await AuthStateProvider.GetAuthenticationStateAsync();
+        navigation.NavigateTo("/Login",true);
+    }
+}

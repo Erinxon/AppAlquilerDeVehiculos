@@ -1,0 +1,159 @@
+﻿@page "/EditarCliente/{Id:int}"
+@attribute [Authorize]
+@inject IServicesPersona servicioper
+@inject IJSRuntime jsRuntime
+@inject NavigationManager navigationManager
+@inject IWebHostEnvironment env
+@inject AlquilerVehiculoDbContext Context
+
+<PageTitle Value="Editar Clientes" />
+<PageHeading Value="Editar Clientes" />
+<div class="container mt-3 d-flex justify-content-center shadow p-3 mb-5 bg-white rounded">
+    @if (cls == null)
+    {
+        <h3>Cargando...</h3>
+    }
+    else
+    {
+        <EditForm class="needs-validation" Model="@cls" OnValidSubmit="@SaveCliente">
+            <FluentValidationValidator />
+            <InputText @bind-Value="cls.Nombre" class="form-control" placeholder="Nombre" />
+            <br />
+            <InputText @bind-Value="cls.Apellido" class="form-control" placeholder="Apellido" />
+            <br />
+            <InputText @bind-Value="cls.Correo" id="correoCliente"  class="form-control" placeholder="example@gmail.com" />
+            <br />
+            <InputText @bind-Value="cls.Licencia" id="LicenciaCliente"  class="form-control" placeholder="Licencia" />
+            <br />
+            <InputText @bind-Value="cls.Nacionalidad" class="form-control" placeholder="Nacionalidad" />
+            <br />
+
+            <InputSelect @bind-Value="cls.TipoSangre" class="form-control" placeholder="Tipo de sangre">
+                <option value="" disabled selected>Tipo de sangre</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+            </InputSelect>
+            <div class="col-md-12 mb-3">
+                <label>Foto de Licencia</label>
+                <InputFile OnChange="OnInputFileChange" class="form-control" type="file" @bind-Value="@cls.FotoLicencia" />
+                <ValidationMessage For="@(() => cls.FotoLicencia)" />
+            </div>
+
+            <button class="btn btn-primary btn-lg btn-block" id="editCliente">Guardar</button>
+            <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick="ClearInput">Cancelar</button>
+        </EditForm>
+    }
+</div>
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    public Cliente cls { get; set; }
+    IReadOnlyList<IBrowserFile> selectedFiles;
+    private IJSObjectReference jSObjectReference;
+    private string lastImg { get; set; }
+    private bool selectOtherImg = false;
+    private string LastCorreo { get; set; }
+    private string LastLicencia { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        cls = await servicioper.GetClienteByIdAsync(Id);
+        if (cls == null)
+        {
+            navigationManager.NavigateTo("/");
+        }
+        LastCorreo = cls.Correo;
+        LastLicencia = cls.Licencia;
+        lastImg = cls.FotoLicencia;
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles();
+        foreach (var file in selectedFiles)
+        {
+            cls.FotoLicencia = file.Name;
+            selectOtherImg = true;
+
+        }
+    }
+
+    private async Task SaveCliente()
+    {
+        try
+        {
+            await Loanding(true);
+            if (servicioper.IsExistLicencia(cls.Licencia) && LastLicencia != cls.Licencia)
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "LicenciaCliente", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                $"La licencia '{cls.Licencia}' ya existe, por favor intente con otra");
+            }
+            else if (servicioper.IsExistCorreo(cls.Correo) && LastCorreo != cls.Correo)
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "correoCliente", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                $"El correo '{cls.Correo}' ya existe, por favor intente con otro");
+            }
+            else if (selectOtherImg)
+            {
+                foreach (var file in selectedFiles)
+                {
+                    Stream stream = file.OpenReadStream();
+                    var path = $"{env.WebRootPath}\\Imagenes\\ImgClientes\\{file.Name}";
+                    FileStream fs = File.Create(path);
+                    File.Delete($"{env.WebRootPath}\\Imagenes\\ImgClientes\\{lastImg}");
+                    await stream.CopyToAsync(fs);
+                    stream.Close();
+                    fs.Close();
+                }
+                this.StateHasChanged();
+                await servicioper.EditCliente(cls);
+                await Loanding(false);
+                ClearInput();
+            }
+            else
+            {
+                await servicioper.EditCliente(cls);
+                await Loanding(false);
+                ClearInput();
+            }
+        }
+        catch (Exception ex)
+        {
+            string xd = ex.Message;
+        }
+
+    }
+
+    private void ClearInput()
+    {
+        navigationManager.NavigateTo("/Clientes", true);
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "editCliente", "Guardar");
+    }
+}

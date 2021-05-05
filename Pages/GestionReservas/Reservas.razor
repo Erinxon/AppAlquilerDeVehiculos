@@ -1,0 +1,178 @@
+﻿@page "/Reservas"
+@attribute [Authorize]
+@inject IServicesVehiculo servicesVehiculo
+@inject AlquilerVehiculoDbContext Context
+@inject NavigationManager navigationManager
+@inject IJSRuntime jsRuntime
+@inject IServicesReserva servicesReserva
+@inject IServicesFactura servicesFactura
+@inject IServicesUsuarios servicesUsuarios
+@inject ILocalStorageService localStorage
+
+
+<PageTitle Value="Reservas" />
+<PageHeading Value="Reservas" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div class="container">
+        <EditForm class="needs-validation" Model="@reserva" OnValidSubmit="@Guardar">
+            <FluentValidationValidator />
+            <div class="form-row">
+                <div class="col-md-6 mb-3">
+                    <label>Selecionar Vehículo</label>
+                    <InputSelect class="form-control" id="tiposVehiculos" @bind-Value="@reserva.IdVehiculo">
+                        <option value="0" selected="selected">Seleccionar</option>
+                        @if (vehiculos != null)
+                        {
+                        @foreach (var item in vehiculos)
+                            {
+                        @if (item.Ishabilitado > 0)
+                                {
+                        <option value="@item.IdVehiculo">@item.Marca</option>
+                                }
+
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => reserva.IdVehiculo)" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Selecionar Cliente</label>
+                    <InputSelect class="form-control" id="tiposVehiculos" @bind-Value="@reserva.IdCliente">
+                        <option value="0" selected="selected">Seleccionar</option>
+                        @if (clientes != null)
+                        {
+                        @foreach (var item in clientes)
+                            {
+                        @if (item.Ishabilitado > 0)
+                                {
+                        <option value="@item.IdCliente">@(item.Nombre + " " + item.Apellido)</option>
+                                }
+                            }
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => reserva.IdCliente)" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Fecha Inicio</label>
+                    <InputDate type="date" id="FechaInicio" @bind-Value="@reserva.FechaInicio" disabled="@(reserva.IdVehiculo == null || reserva.IdVehiculo == 0 ? true : false)" class="form-control" />
+                    <ValidationMessage For="@(() => reserva.FechaInicio)" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Fecha Fin</label>
+                    <InputDate type="date" id="FechaFin" @bind-Value="@reserva.FechaFin" disabled="@(reserva.IdVehiculo == null || reserva.IdVehiculo == 0 || reserva.FechaInicio == null ? true : false)" class="form-control" />
+                    <ValidationMessage For="@(() => reserva.FechaFin)" />
+                </div>
+            </div>
+            <button class="btn btn-primary btn-lg btn-block" id="addReserva">Guardar</button>
+            <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick:preventDefault @onclick="@clear">Cancelar</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Vehiculo> vehiculos { get; set; }
+    private IEnumerable<Cliente> clientes { get; set; }
+    private IJSObjectReference jSObjectReference;
+
+    private Reserva reserva = new Reserva();
+    Factura factura = new Factura();
+
+    protected async override Task OnInitializedAsync()
+    {
+        vehiculos = await servicesVehiculo.GetAllVehiculosAsync();
+        clientes = await Context.Clientes.ToListAsync();
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private async Task Guardar()
+    {
+        try
+        {
+            await Loanding(true);
+            if (reserva.FechaInicio < DateTime.Now.Date.AddDays(-1))
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "FechaInicio", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                "La fecha de inicio debe ser mayor o igual al dia actual");
+            }
+            else if (reserva.FechaFin < reserva.FechaInicio)
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "FechaFin", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                "La fecha fin no puede ser menor que la fecha inicio");
+            }
+            else if (!servicesReserva.IsVehiculoDisponible((int)reserva.IdVehiculo,
+            (DateTime)reserva.FechaInicio, (DateTime)reserva.FechaFin))
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "FechaInicio", "invalid");
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "FechaFin", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                "El vehiculo no esta disponible en la fecha seleccionada");
+            }
+            else
+            {
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "FechaInicio", "valid");
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "FechaFin", "valid");
+                decimal precio = GetPrecio((int)reserva.IdVehiculo,
+                (DateTime)reserva.FechaInicio, (DateTime)reserva.FechaFin);
+                string usuario = await localStorage.GetItemAsStringAsync("nombreUsuario");
+                int idUsuario = servicesUsuarios.GetIdUsuarioByUsuario(usuario);
+                await servicesReserva.SaveReserva(reserva);
+                factura.IdUsuario = idUsuario;
+                factura.Fecha = DateTime.Today;
+                factura.IdReserva = servicesReserva.GetLastIdReserva();
+                factura.Monto = precio;
+                factura.TotalPagado = 0;
+                await servicesFactura.SaveFactura(factura);
+                await Loanding(false);
+                Pagar((int)factura.IdReserva);
+                await clear();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await jSObjectReference.InvokeVoidAsync("mensajeError", ex.Message);
+        }
+    }
+
+    private async Task clear()
+    {
+        await jSObjectReference.InvokeVoidAsync("ClearInput");
+        reserva = new Reserva();
+        factura = new Factura();
+    }
+
+    private decimal GetPrecio(int id, DateTime fechaInicio, DateTime fechaFin)
+    {
+        int dias = (int) (fechaFin - fechaInicio).Days;
+        decimal precioPordia = servicesVehiculo.getPrecioPordia(id);
+        return (precioPordia * dias);
+    }
+
+    private void Pagar(int id)
+    {
+        navigationManager.NavigateTo($"/Factura/{id}");
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "addReserva", "Guardar");
+    }
+}

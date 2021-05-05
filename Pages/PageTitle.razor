@@ -1,0 +1,17 @@
+﻿@inject IJSRuntime JSRuntime
+@code{
+    [Parameter]
+    public string Value { get; set; }
+    private IJSObjectReference jSObjectReference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await CargarJs();
+        await jSObjectReference.InvokeVoidAsync("CambiarTitulo", Value);
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+}

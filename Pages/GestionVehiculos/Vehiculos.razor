@@ -1,0 +1,171 @@
+﻿@page "/Vehiculos"
+@attribute [Authorize]
+@inject IServicesVehiculo servicesVehiculo
+@inject IServicesTipoVehiculo servicesTipoVehiculo
+@inject NavigationManager navigationManager
+<PageTitle Value="Vehiculos" />
+<PageHeading Value="Vehiculos" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div class="row mt-3 mb-3">
+        <div class="col">
+            <div class="float-left">
+                <a class="btn btn-primary mr-sm-2 mb-2" href="/AgregarVehiculos">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Agregar Vehiculo
+                </a>
+                <a class="btn btn-primary mb-2" href="/TiposVehiculos" target="_blank" style="text-decoration: none">
+                    <i class="fas fa-external-link-alt mr-2"></i>
+                    Tipo de vehiculos
+                </a>
+            </div>
+            <div class="float-right">
+                <input class="dataTable-input" @bind="@search" placeholder="Buscar por marca o modelo" type="text">
+                <button class="btn btn-primary"  @onclick="@Filtrar">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-secondary"  @onclick="@Clear">
+                    <i class="fas fa-eraser"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (vehiculos == null)
+    {
+        <Spinner />
+    }
+    else if (vehiculos.Count() == 0)
+    {
+        <h3>@resultMessage</h3>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Foto</th>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>Tipo vehiculo</th>
+                        <th>Año</th>
+                        <th>Color</th>
+                        <th>Precio por dia</th>
+                        <th>Capacidad cargar</th>
+                        <th>Pasajeros</th>
+                        <th>Matrícula</th>
+                        <th>Seguro</th>
+                        <th>Latitud</th>
+                        <th>Logitud</th>
+                        <th style="min-width: 122px;">Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ViewModelVehiculo vehiculo in vehiculos)
+                    {
+                        <tr>
+                            <td>
+                                <div class="avatar avatar-xl">
+                                    <img src="@GetImg(vehiculo.Foto)" />
+                                </div>
+                            </td>
+                            <td>@vehiculo.Marca</td>
+                            <td>@vehiculo.Modelo</td>
+                            <td>@vehiculo.TipoVehiculo</td>
+                            <td>@vehiculo.Anio</td>
+                            <td>@vehiculo.Color</td>
+                            <td>@vehiculo.PrecioPorDia</td>
+                            <td>@vehiculo.CapacidadCarga</td>
+                            <td>@vehiculo.Pasajeros</td>
+                            <td>@vehiculo.Matricula</td>
+                            <td>@vehiculo.NumSeguro</td>
+                            <td>@(Math.Round(decimal.Parse(vehiculo.Latitud),5))</td>
+                            <td>@(Math.Round(decimal.Parse(vehiculo.Longitud),5))</td>
+                            <td>
+                                <span class="@(vehiculo.Ishabilitado == 1 ? "badge bg-primary" : "badge bg-danger")">
+                                    @(vehiculo.Ishabilitado == 1 ? "Habilitado" : "Deshabilitado")
+                                </span>
+                            </td>
+                            <td style="min-width: 122px;">
+                                <a class="btn btn-primary mr-sm-2 mb-2" href="/EditarVehiculos/@vehiculo.IdVehiculo">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <div class="form-check form-switch" data-toggle="tooltip" data-placement="bottom"
+                                     title="@(vehiculo.Ishabilitado == 1 ? "Deshabilitar" : "Habilitar")">
+                                    <input class="form-check-input" type="checkbox" id="@vehiculo.Matricula"
+                                           @onchange="@((ChangeEventArgs __e) => CambiarEstado(vehiculo.IdVehiculo, vehiculo.Ishabilitado))"
+                                           checked="@(vehiculo.Ishabilitado == 1 ? true : false)">
+                                    <label class="form-check-label" for="@vehiculo.Matricula"> </label>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+
+@code {
+    private IEnumerable<ViewModelVehiculo> vehiculos { get; set; }
+    private string search { get; set; } = string.Empty;
+    private string resultMessage { get; set; } = string.Empty;
+    protected async override Task OnInitializedAsync()
+    {
+        await GetVehiculos();
+    }
+
+    private async Task GetVehiculos()
+    {
+        if (!search.Equals(""))
+        {
+            vehiculos = await servicesVehiculo.GetfilterVehiculosAsync(search);
+            resultMessage = vehiculos.Count() > 0 ? "" : "No se encontró ningún vehiculo que coincida con su busqueda";
+        }
+        else
+        {
+            vehiculos = await servicesVehiculo.GetAllVehiculos();
+            resultMessage = vehiculos.Count() > 0 ? "" : "No hay vehiculos registrados";
+        }
+    }
+
+    private string GetTipoVehiculo(int id)
+    {
+        return  servicesTipoVehiculo.GetTipoVehiculoById(id);
+    }
+
+    private async Task CambiarEstado(int id, int estado)
+    {
+        try
+        {
+            Vehiculo vehiculo = await servicesVehiculo.GetVehiculoByIdAsync(id);
+            vehiculo.Ishabilitado = estado == 1 ? 0 : 1;
+            await servicesVehiculo.CambiarCampoHabilitado(vehiculo);
+            await GetVehiculos();
+            vehiculo = null;
+        }
+        catch (Exception ex)
+        {
+            string errror = ex.Message;
+        }
+    }
+
+    private string GetImg(string imgName)
+    {
+        return "/Imagenes/ImgVehiculos/" + imgName;
+    }
+
+    private async Task Filtrar()
+    {
+        await GetVehiculos();
+    }
+
+    private async Task Clear()
+    {
+        search = string.Empty;
+        await GetVehiculos();
+    }
+}

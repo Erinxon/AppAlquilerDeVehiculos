@@ -1,0 +1,76 @@
+﻿@page "/Deben"
+@attribute [Authorize]
+@inject AlquilerVehiculoDbContext context
+
+<PageTitle Value="Listado de clientes con deudas" />
+<PageHeading Value="Listado de clientes con deudas" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <table class="table">
+        <thead class="">
+            <tr>
+                <th>Cedula</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Monto por Pagar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in GetPersonas())
+            {
+                <tr>
+                    <td>@item.Cedula</td>
+                    <td>@item.Nombre</td>
+                    <td>@item.Apellido</td>
+                    <td>@item.Monto</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    List<infoClientes> GetPersonas() => (from c in context.Clientes
+                                         join r in context.Reservas
+                                         on c.IdCliente equals r.IdCliente
+                                         join f in context.Facturas
+                                         on r.IdReserva equals f.IdReserva
+                                         where f.Monto != f.TotalPagado
+                                         group new { c } by new
+                                         {
+                                             c.Cedula,
+                                             c.Nombre,
+                                             c.Apellido,
+                                             c.IdCliente
+
+                                         } into cliente
+                                         select new infoClientes
+                                         {
+                                             Cedula = cliente.Key.Cedula,
+                                             Nombre = cliente.Key.Nombre,
+                                             Apellido = cliente.Key.Apellido,
+                                             Monto = (
+                                                      from reserva in context.Reservas
+                                                      join factura in context.Facturas
+                                                      on reserva.IdReserva equals factura.IdReserva
+                                                      where reserva.IdCliente == cliente.Key.IdCliente
+                                                      && factura.Monto != factura.TotalPagado
+                                                      select new
+                                                      {
+                                                          monto = (decimal)factura.Monto - (decimal)factura.TotalPagado
+
+                                                      }).Sum(x => x.monto)
+
+                                         })
+                                           .ToList();
+
+
+    public class infoClientes
+    {
+        public string Cedula { get; set; }
+        public string Nombre { get; set; }
+        public string Apellido { get; set; }
+        public decimal Monto { get; set; }
+    }
+
+}

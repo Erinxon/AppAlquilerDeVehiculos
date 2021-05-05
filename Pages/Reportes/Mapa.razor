@@ -1,0 +1,85 @@
+﻿@page "/mapa"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject AlquilerVehiculoDbContext context
+@inject NavigationManager navigationManager
+
+<PageTitle Value="Reporte mapa" />
+<PageHeading Value="Reporte mapa" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div id="map" class="map map-home" style="margin:12px 0 12px 0;height:500px;"></div>
+</div>
+
+@code {
+    IJSObjectReference jSObjectReference;
+    private List<InfoMapa> infoMapa = new List<InfoMapa>();
+
+
+    protected async override Task OnAfterRenderAsync(bool fierstRender)
+    {
+        if (fierstRender)
+        {
+            await CargarJs();
+            await MostrarMapa();
+        }
+    }
+
+    async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Mapa.js");
+    }
+
+    async Task MostrarMapa()
+    {
+        try
+        {
+            infoMapa = await GetInfoMapa();
+            var infoVehiculoMapJson = System.Text.Json.JsonSerializer.Serialize(infoMapa);
+            await jSObjectReference.InvokeVoidAsync("MostrarMapa", infoVehiculoMapJson);
+        }
+        catch (Exception ex)
+        {
+            string error = ex.Message;
+        }
+
+
+    }
+
+    private async Task<List<InfoMapa>> GetInfoMapa()
+    {
+        return await (from v in context.Vehiculos
+                      select new InfoMapa
+                      {
+                          IdVehiculo = v.IdVehiculo,
+                          Marca = v.Marca,
+                          Modelo = v.Modelo,
+                          Color = v.Color,
+                          Anio = v.Anio,
+                          Latitud = v.Latitud,
+                          Longitud = v.Longitud,
+                          Foto = $"{navigationManager.BaseUri}Imagenes/ImgVehiculos/{v.Foto}",
+                          Citas = context.Reservas
+                                    .Where(x => x.IdVehiculo == v.IdVehiculo)
+                                    .Take(3)
+                                    .Select(x =>
+                                    "Del " + x.FechaInicio.Value.ToShortDateString() +
+                                    " al " + x.FechaFin.Value.ToShortDateString() + "<br/>").ToList()
+                      }).ToListAsync();
+    }
+
+    public class InfoMapa
+    {
+        public int IdVehiculo { get; set; }
+        public string Marca { get; set; }
+        public string Modelo { get; set; }
+        public int? Anio { get; set; }
+        public string Color { get; set; }
+        public string Foto { get; set; }
+        public string Latitud { get; set; }
+        public string Longitud { get; set; }
+        public List<string> Citas { get; set; }
+    }
+
+
+}

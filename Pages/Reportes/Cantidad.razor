@@ -1,0 +1,74 @@
+﻿@page "/Cantidad"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject AlquilerVehiculoDbContext Context
+@inject NavigationManager navigationManager
+@inject IServicesVehiculo servicesVehiculo
+@inject AlquilerVehiculoDbContext _context
+
+
+<PageTitle Value="Listado de Beneficios" />
+<PageHeading Value="Listado de Beneficios" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <table class="table mt-2">
+        <thead>
+            <tr>
+                <th>IdVehiculo</th>
+                <th>Modelo</th>
+                <th>Nº Reservas</th>
+                <th>Monto Facturado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cantidad in GetTotal())
+            {
+                <tr>
+                    <td>@cantidad.IdVehiculo</td>
+                    <td>@cantidad.Modelo</td>
+                    <td>@cantidad.Total</td>
+                    <td>@cantidad.totalGenerado</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+    List<InfoReservas> GetTotal() => (from v in _context.Vehiculos
+                                      group new { v } by new
+                                      {
+                                          v.IdVehiculo,
+                                          v.Marca,
+                                          v.Modelo,
+
+                                      } into vehiculo
+                                      select new InfoReservas
+                                      {
+                                          IdVehiculo = vehiculo.Key.IdVehiculo,
+                                          Marca = vehiculo.Key.Marca,
+                                          Modelo = vehiculo.Key.Modelo,
+                                          Total = (int)_context.Reservas.Where(x => x.IdVehiculo == vehiculo.Key.IdVehiculo).Count(),
+                                          totalGenerado = (decimal)(from r in _context.Reservas
+                                                                    join f in _context.Facturas
+                                                                    on r.IdReserva equals f.IdReserva
+                                                                    where r.IdVehiculo == vehiculo.Key.IdVehiculo
+                                                                    select new
+                                                                    {
+                                                                        f.Monto
+                                                                    }).Sum(x => x.Monto)
+                                      }).ToList();
+
+
+    public class InfoReservas
+    {
+        public int IdVehiculo { get; set; }
+        public string Marca { get; set; }
+        public string Modelo { get; set; }
+        public int Total { get; set; }
+        public decimal totalGenerado { get; set; }
+
+    }
+
+}

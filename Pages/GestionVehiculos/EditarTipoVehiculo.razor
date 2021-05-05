@@ -1,0 +1,97 @@
+﻿@page "/EditarTipoVehiculo/{Id:int}"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject IServicesTipoVehiculo servicesTipoVehiculo
+@inject NavigationManager navigationManager
+
+
+<PageTitle Value="Editar Tipo de Vehiculo" />
+<PageHeading Value="Editar tipo de Vehiculos" />
+
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    @if (tiposVehiculos != null)
+    {
+        <EditForm class="needs-validation" Model="@tiposVehiculos" OnValidSubmit="@Guardar">
+            <FluentValidationValidator />
+            <div class="form-row">
+                <div class="col-md-12 mb-3">
+                    <label>Tipo de vehiculo</label>
+                    <InputText type="text" id="tiposVehiculosNombre" @bind-Value="@tiposVehiculos.Nombre" class="form-control" />
+                    <ValidationMessage For="@(() => tiposVehiculos.Nombre)"  />
+                </div>
+            </div>
+            <button class="btn btn-primary btn-lg btn-block" id="editTipoVehiculo">Guardar</button>
+            <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick:preventDefault @onclick="@Redirect">Cancelar</button>
+        </EditForm>
+    }
+    else
+    {
+        <Spinner />
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private TipoVehiculo tiposVehiculos { get; set; }
+    private IJSObjectReference jSObjectReference;
+    private  string LastTipoVehiculoEdit { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        tiposVehiculos = await servicesTipoVehiculo.GetVehiculo(Id);
+        if (tiposVehiculos !=null)
+        {
+            LastTipoVehiculoEdit = tiposVehiculos.Nombre;
+        }
+        else
+        {
+            navigationManager.NavigateTo("/");
+        }
+
+    }
+
+    private async Task Guardar()
+    {
+        await Loanding(true);
+        if (!servicesTipoVehiculo.IsExist(tiposVehiculos.Nombre) || LastTipoVehiculoEdit == tiposVehiculos.Nombre)
+        {
+            await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "tiposVehiculosNombre","valid");
+            await servicesTipoVehiculo.EditTipoVehiculo(tiposVehiculos);
+            await Loanding(false);
+            Redirect();
+        }
+        else
+        {
+            await Loanding(false);
+            await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "tiposVehiculosNombre","invalid");
+            await jSObjectReference.InvokeVoidAsync("mensajeError", $"{tiposVehiculos.Nombre} ya existe, por favor intente con otro");
+        }
+
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private void Redirect()
+    {
+        navigationManager.NavigateTo("/TiposVehiculos", true);
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "editTipoVehiculo", "Guardar");
+    }
+}

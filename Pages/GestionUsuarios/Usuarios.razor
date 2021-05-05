@@ -1,0 +1,108 @@
+﻿@page "/Usuarios"
+@attribute [Authorize]
+@inject IServicesTipoVehiculo ServicesTipoVehiculo
+@inject IServicesUsuarios servicesUsuarios
+
+
+<PageTitle Value="Usuarios" />
+<PageHeading Value="Usuarios" />
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div class="row mt-3 mb-3">
+        <div class="col">
+            <div class="float-left">
+                <a class="btn btn-primary mr-sm-2 mb-2" href="/AgregarUsuario">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Agregar usuario
+                </a>
+            </div>
+            <div class="float-right">
+                <input class="dataTable-input" @bind="@search" placeholder="Buscar..." type="text">
+                <button class="btn btn-primary" @onclick="@Filtrar">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-secondary" @onclick="@Clear">
+                    <i class="fas fa-eraser"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (usuarios == null)
+    {
+        <Spinner />
+    }
+    else if (usuarios.Count() == 0)
+    {
+        <h3>@resultMessage</h3>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre de usuaio</th>
+                        <th>Correo</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in usuarios)
+                    {
+                        <tr>
+                            <td>@item.NombreUsuario</td>
+                            <td>@item.Correo</td>
+                            <td>@item.Nombre</td>
+                            <td>@item.Apellido</td>
+                            <td>
+                                <a class="btn btn-primary mr-sm-2 mb-2" href="/EditarUsuario/@item.Id">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<Usuario> usuarios { get; set; }
+
+    private string search { get; set; } = string.Empty;
+    private string resultMessage { get; set; } = string.Empty;
+
+    protected async override Task OnInitializedAsync()
+    {
+        usuarios = await servicesUsuarios.GetAllUsuariosAsync();
+    }
+
+    private async Task GetUsuarios()
+    {
+        if (search.Equals(""))
+        {
+            usuarios = await servicesUsuarios.GetAllUsuariosAsync();
+            resultMessage = usuarios.Count() == 0 ? "No hay usuario registrados" : "";
+        }
+        else
+        {
+            usuarios = await servicesUsuarios.GetFilterUsuariosAsync(search);
+            resultMessage = usuarios.Count() == 0 ? "No se encontró ningún usuario que coincida con su busqueda" : "";
+        }
+    }
+
+    private async Task Filtrar()
+    {
+        await GetUsuarios();
+    }
+
+    private async Task Clear()
+    {
+        search = string.Empty;
+        await GetUsuarios();
+    }
+
+}

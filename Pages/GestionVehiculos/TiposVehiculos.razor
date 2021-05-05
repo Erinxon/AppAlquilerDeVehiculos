@@ -1,0 +1,101 @@
+﻿@page "/TiposVehiculos"
+@attribute [Authorize]
+@inject IServicesTipoVehiculo ServicesTipoVehiculo
+<PageTitle Value="Tipos de Vehiculos" />
+<PageHeading Value="Tipos de Vehiculos" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <div class="row mt-3 mb-3">
+        <div class="col">
+            <div class="float-left">
+                <a class="btn btn-primary mr-sm-2 mb-2" href="/AgregarTipoVehiculo">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Agregar tipo Vehiculo
+                </a>
+            </div>
+            <div class="float-right">
+                <input class="dataTable-input" @bind="@search" placeholder="Buscar..." type="text">
+                <button class="btn btn-primary" @onclick="@Filtrar">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-secondary" @onclick="@Clear">
+                    <i class="fas fa-eraser"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (Tiposvehiculos == null)
+    {
+        <Spinner />
+    }
+    else if (Tiposvehiculos.Count() == 0)
+    {
+        <h3>@resultMessage</h3>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo vehiculo</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Tiposvehiculos)
+                    {
+                        <tr>
+                            <td>@item.Nombre</td>
+                            <td>
+                                <a class="btn btn-primary mr-sm-2 mb-2" href="/EditarTipoVehiculo/@item.IdTipoVehiculo">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<TipoVehiculo> Tiposvehiculos { get; set; }
+
+    private string search { get; set; } = string.Empty;
+    private string resultMessage { get; set; } = string.Empty;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await GetTiposVehiculos();
+    }
+
+    private async Task GetTiposVehiculos()
+    {
+        if (search.Equals(""))
+        {
+            Tiposvehiculos = await ServicesTipoVehiculo.GetAllTipoVehiculosAsync();
+            resultMessage = Tiposvehiculos.Count() == 0 ? "No hay tipos de vehiculos registrados" : "";
+        }
+        else
+        {
+            Tiposvehiculos = await ServicesTipoVehiculo.GetFilterTipoVehiculosAsync(search);
+            resultMessage = Tiposvehiculos.Count() == 0 ?
+                "No se encontró ningún tipo vehiculo que coincida con su busqueda" : "";
+        }
+    }
+
+    private async Task Filtrar()
+    {
+        await GetTiposVehiculos();
+    }
+
+    private async Task Clear()
+    {
+        search = string.Empty;
+        await GetTiposVehiculos();
+    }
+
+}

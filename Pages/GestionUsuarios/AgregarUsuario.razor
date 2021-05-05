@@ -1,0 +1,127 @@
+﻿@page "/AgregarUsuario"
+@attribute [Authorize]
+@inject IServicesUsuarios servicesUsuarios
+@inject IJSRuntime jsRuntime
+
+<PageTitle Value="Agregar Usuarios" />
+
+<PageHeading Value="Agregar Usuarios" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    <EditForm class="needs-validation" Model="@usuarioViewModel" OnValidSubmit="@Guardar">
+        <FluentValidationValidator />
+        <div class="form-row">
+            <div class="col-md-6 mb-3">
+                <label>Nombre de usuario</label>
+                <InputText type="text" id="NombreUsuario" @bind-Value="@usuarioViewModel.NombreUsuario" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.NombreUsuario)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Correo</label>
+                <InputText id="CorreoUsuario" @bind-Value="@usuarioViewModel.Correo" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.Correo)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Nombre</label>
+                <InputText id="NombreUsuario" @bind-Value="@usuarioViewModel.Nombre" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.Nombre)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Apellido</label>
+                <InputText id="Apellido" @bind-Value="@usuarioViewModel.Apellido" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.Apellido)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Contraseña</label>
+                <InputText type="password" id="Pass" @bind-Value="@usuarioViewModel.Pass" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.Pass)" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Repetir la Contraseña</label>
+                <InputText type="password" id="ConfirmPass" @bind-Value="@usuarioViewModel.ConfirmPass" class="form-control" />
+                <ValidationMessage For="@(() => usuarioViewModel.ConfirmPass)" />
+            </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" id="addUsuario">Guardar</button>
+        <button class="btn btn-secondary btn-lg btn-block mb-3" @onclick:preventDefault @onclick="@cancelar">Cancelar</button>
+    </EditForm>
+</div>
+
+@code {
+
+    private UsuarioViewModel usuarioViewModel = new UsuarioViewModel();
+
+    private IJSObjectReference jSObjectReference;
+
+    private async Task Guardar()
+    {
+        try
+        {
+            await Loanding(true);
+            if (servicesUsuarios.IsExistCorreo(usuarioViewModel.Correo))
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "CorreoUsuario", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                    $"El correo '{usuarioViewModel.Correo}' ya existe, por favor intente con otro");
+            }
+            else if (servicesUsuarios.IsExist(usuarioViewModel.NombreUsuario))
+            {
+                await Loanding(false);
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid red", "NombreUsuario", "invalid");
+                await jSObjectReference.InvokeVoidAsync("mensajeError",
+                    $"El nombre de usuario '{usuarioViewModel.NombreUsuario}' ya existe, por favor intente con otro");
+            }
+            else
+            {
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "NombreUsuario", "valid");
+                await jSObjectReference.InvokeVoidAsync("addValidation", "1px solid #26b050", "CorreoUsuario", "valid");
+                Usuario Usuario = new Usuario();
+                Usuario.NombreUsuario = usuarioViewModel.NombreUsuario;
+                Usuario.Correo = usuarioViewModel.Correo;
+                Usuario.Nombre = usuarioViewModel.Nombre;
+                Usuario.Apellido = usuarioViewModel.Apellido;
+                Usuario.Pass = usuarioViewModel.Pass;
+                await servicesUsuarios.SaveUsuario(Usuario);
+                await Loanding(false);
+                usuarioViewModel = new UsuarioViewModel();
+                Usuario = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            await Loanding(false);
+            await jSObjectReference.InvokeVoidAsync("mensajeError",
+               ex.Message);
+        }
+
+
+
+    }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+    private async Task cancelar()
+    {
+        await jSObjectReference.InvokeVoidAsync("ClearInput");
+        usuarioViewModel = new UsuarioViewModel();
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "addUsuario", "Guardar");
+    }
+
+
+}

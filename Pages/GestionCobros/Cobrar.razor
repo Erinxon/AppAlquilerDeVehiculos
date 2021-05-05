@@ -1,0 +1,134 @@
+﻿@page "/Cobrar/{Id:int}"
+@attribute [Authorize]
+@inject IJSRuntime jsRuntime
+@inject IServicesPersona servicioper
+@inject AlquilerVehiculoDbContext Context
+@inject NavigationManager navigationManager
+@inject IServicesFactura servicesFactura
+
+<PageTitle Value="Cobrar factura" />
+<PageHeading Value="Cobrar factura" />
+
+<div class="container shadow p-3 mb-5 bg-white rounded">
+    @if (factura == null)
+    {
+        <Spinner />
+
+    }
+    else if (error != null)
+    {
+        <div class="alert alert-danger">
+            <h4 class="alert-heading p-2">@error</h4>
+        </div>
+    }
+    else
+    {
+        <EditForm class="needs-validation" Model="@DineroPagar" OnValidSubmit="@cobrar">
+            <div class="row p-3">
+                <label>Total a cobrar</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">$</span>
+                    </div>
+                    <input type="text" class="form-control" @bind="@factura.Monto" readonly aria-label="Dollar amount (with dot and two decimal places)">
+                </div>
+                <label>Total pagado</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">$</span>
+                    </div>
+                    <input type="text" class="form-control" @bind="@factura.TotalPagado" readonly aria-label="Dollar amount (with dot and two decimal places)">
+                </div>
+                <label>Dinero a pagar</label>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">$</span>
+                    </div>
+                    <InputNumber @bind-Value="@DineroPagar.TotalDinero" class="form-control" aria-label="Dollar amount (with dot and two decimal places)" />
+                </div>
+                <div class="input-group mb-3">
+                    <button class="btn btn-primary btn-lg btn-block" id="cobrarFactura">Cobrar</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code{
+    [Parameter]
+    public int Id { get; set; }
+    private Factura factura { get; set; }
+    private Dinero DineroPagar = new Dinero();
+    private IJSObjectReference jSObjectReference;
+    private string error { get; set; }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarJs();
+        }
+    }
+
+    private async Task CargarJs()
+    {
+        jSObjectReference = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./Utils.js");
+    }
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            factura = await servicesFactura.GetFacturaById(Id);
+            if (factura == null)
+            {
+                navigationManager.NavigateTo("/", true);
+            }
+            if (factura.Monto == factura.TotalPagado)
+            {
+                error = "Ya se ha pagado la totalidad de la factura";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+
+    }
+
+    private async Task cobrar()
+    {
+        await Loanding(true);
+        if (DineroPagar.TotalDinero <= 0)
+        {
+            await Loanding(false);
+            await jSObjectReference.InvokeVoidAsync("mensajeError", "El dinero a cobra no puede ser menor o igual a 0");
+
+        }
+        else if ((DineroPagar.TotalDinero + factura.TotalPagado) > factura.Monto)
+        {
+            await Loanding(false);
+            await jSObjectReference.InvokeVoidAsync("mensajeError", "No puede superar el monto a pagar");
+        }
+        else
+        {
+            factura.TotalPagado += DineroPagar.TotalDinero;
+            await servicesFactura.EditFactura(factura);
+            await Loanding(false);
+            navigationManager.NavigateTo($"/Factura/{factura.IdFactura}");
+        }
+    }
+
+
+    public class Dinero
+    {
+        [Required(ErrorMessage = "El compo es requerido")]
+        public int TotalDinero { get; set; }
+    }
+
+    private async Task Loanding(bool isLoanding)
+    {
+        await jSObjectReference.InvokeVoidAsync("LoandingButton", isLoanding, "cobrarFactura", "Cobrar");
+    }
+}
